@@ -3,23 +3,34 @@ load atm.maude .
 fmod TESTS is
 	protecting ATM .
 	protecting CARD .
+	protecting DATABASE .
 
 	op emptyAtm : -> Atm .
 	eq emptyAtm = atm(waitingForCard, nullCard) .
 
-	op mockCard : -> Card .
-	eq mockCard = card(999888777, 1234, 100) .
+	op fioCard : -> Card .
+	eq fioCard = card("Fio", 999888777) .
 
-	op mockCardList : -> CardList .
-	eq mockCardList = cardList(mockCard, cardList) .
+	op fioAccount : -> Account .
+	eq fioAccount = account(999888777, 1234, 100) .
 
-	op mockBank : -> Bank .
-	eq mockBank = bank(mockCardList) .
+	op fioAccountList : -> AccountList .
+	eq fioAccountList = accountList(fioAccount, accountList) .
+
+	op fioBank : -> Bank .
+	eq fioBank = bank("Fio", fioAccountList) .
 	
+	op bankDatabase : -> BankDB .
+	eq bankDatabase = bankDB(fioBank, bankDB) .
+
+	op insertedCardAtm : -> Atm .
+	eq insertedCardAtm = insertCard(fioCard, emptyAtm) .
+
+	var P : Pin .
+	op mockPinEntry : Pin -> Atm .
+	eq mockPinEntry(P) = validateCardPin(bankDatabase, P, insertedCardAtm) .
 
 endfm
 
---- Insert and reject card
-red mockCard .
-red insertCard(mockCard, emptyAtm) .
-red getCardByNumber(999888777, mockCardList) .
+red mockPinEntry(enterPin(1234)) .
+red mockPinEntry(enterPin(1235)) .

@@ -2,26 +2,24 @@
 fmod CARD is
 
 	protecting NAT .
-	sort Card CardNumber Pin Balance .
-	subsort Nat < CardNumber Pin Balance .
+	protecting STRING .
+
+	sort Card CardNumber BankName .
+	subsort Nat < CardNumber .
+	subsort String < BankName .
 
 	op nullCard : -> Card .
-	op card : CardNumber Pin Balance -> Card .
-	op pin : Nat -> Pin .
+	op card : BankName CardNumber -> Card .
 
-
+	var BN : BankName .
 	var CN : CardNumber .
-	var P : Pin .
-	var B : Balance .
+
+	op getCardBankName : Card -> BankName .
+	eq getCardBankName(card(BN, CN)) = BN .
 
 	op getCardNumber : Card -> CardNumber .
-	eq getCardNumber(card(CN, P, B)) = CN .
+	eq getCardNumber(card(BN, CN)) = CN .
 
-	op getCardPin : Card -> Pin .
-	eq getCardPin(card(CN, P, B)) = P .
-
-	op getCardBalance : Card -> Balance .
-	eq getCardBalance(card(CN, P, B)) = B .
 
 endfm
 
@@ -29,39 +27,85 @@ fmod BANK is
 	protecting NAT .
 	protecting CARD .
 
-	sort CardList .
-	op cardList : -> CardList .
-	op cardList : Card CardList -> CardList .
+	sort Account AccountList Pin Balance .
+	subsort Nat < Pin Balance Account .
+	
 
-	var C : Card .
+	op account : CardNumber Pin Balance -> Account .
+
 	var CN : CardNumber .
-	--- Tail of a list of cards
-	var TCL : CardList .
+	var P : Pin .
+	var B : Balance .
+	
+	op getAccountCardNumber : Account -> CardNumber .
+	eq getAccountCardNumber(account(CN, P, B)) = CN .
 
-	--- Linear search through the list of cards a bank knows about
-	op getCardByNumber : CardNumber CardList -> Card .
-	eq getCardByNumber(CN, cardList(C, TCL)) =
-		if CN == getCardNumber(C)
-			then C 
+	op getAccountPin : Account -> Pin .
+	eq getAccountPin(account(CN, P, B)) = P .
+
+	op accountList : -> AccountList .
+	op accountList : Account AccountList -> AccountList .
+
+	var ACL : AccountList .
+	var A : Account .
+	var C : Card .
+
+	op getAccountByCard : Card AccountList -> Account .
+	eq getAccountByCard(C, accountList(A, ACL)) =
+		if (getAccountCardNumber(A) == getCardNumber(C)) 
+			then A 
 		else 
-			getCardByNumber(CN, TCL)
+			getAccountByCard(C, ACL) 
 		fi .
 
 	sort Bank .
-	op bank : CardList -> Bank .
+	var BN : BankName .
+
+	op bank : BankName AccountList -> Bank .
+
+	op getBankName : Bank -> BankName .
+	eq getBankName(bank(BN, ACL)) = BN .
+
+	op getBankAccountList : Bank -> AccountList .
+	eq getBankAccountList(bank(BN, ACL)) = ACL .
 
 
 endfm
 
+fmod DATABASE is
+	protecting BANK .
+	protecting CARD .
+
+	sort BankDB .
+	op bankDB : -> BankDB .
+	op bankDB : Bank BankDB -> BankDB .
+
+	var BN : BankName .
+	var BDB : BankDB .
+	var B : Bank .
+
+	op getBankByName : BankName BankDB -> Bank .
+	eq getBankByName(BN, bankDB(B, BDB)) =
+		if BN == getBankName(B)
+			then B 
+		else 
+			getBankByName(BN, BDB)
+		fi .
+
+endfm
+
 fmod ATM is
-	protecting NAT .
 	protecting CARD .
 	protecting BANK .
+	protecting DATABASE .
+
+	protecting NAT .
 
 	--- The "global" state of the ATM
 	--- Includes the state of the ATM itself.
 	sort AtmState .
-	ops waitingForCard waitingForCardValidation : -> AtmState .
+	ops waitingForCard waitingForPin readyForTransaction : -> AtmState .
+	ops invalidPin : -> AtmState .
 
 
 	sort Atm .
@@ -70,19 +114,31 @@ fmod ATM is
 	--- All variables
 	var A : Atm .
 	var C : Card .
+	var P : Pin .
 	var AS : AtmState .
+	var BDB : BankDB .
 
 	
 	--- These ops simulate user interaction with ATM
 
 	op insertCard : Card Atm -> Atm .
-	eq insertCard(C, atm(waitingForCard, nullCard)) = atm(waitingForCardValidation, C) .
+	eq insertCard(C, atm(waitingForCard, nullCard)) = atm(waitingForPin, C) .
 
-	--- It is always possible to reject a card
-	op rejectCard : Atm -> Atm .
-	eq rejectCard(atm(AS, C)) = atm(waitingForCard, nullCard) .
+	op validateCardPin : BankDB Pin Atm -> Atm .
+	eq validateCardPin(BDB, P, atm(waitingForPin, C)) =
+		if getAccountPin(getAccountByCard(C, getBankAccountList(getBankByName(getCardBankName(C), BDB)))) == P
+			then atm(readyForTransaction, C) 
+		else 
+			atm(invalidPin, C) 
+		fi .
+
+	var N : Nat .
+	op enterPin : Nat -> Pin .
+	eq enterPin(N) = N .
+
+	--- It is always possible to eject a card
+	op ejectCard : Atm -> Atm .
+	eq ejectCard(atm(AS, C)) = atm(waitingForCard, nullCard) .
 	
 endfm
 
-
-	
