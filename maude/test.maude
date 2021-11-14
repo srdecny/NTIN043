@@ -5,14 +5,12 @@ fmod TESTS is
 	protecting CARD .
 	protecting DATABASE .
 
-	op emptyAtm : -> Atm .
-	eq emptyAtm = atm(waitingForCard, nullCard) .
 
 	op fioCard : -> Card .
 	eq fioCard = card("Fio", 999888777) .
 
 	op fioAccount : -> Account .
-	eq fioAccount = account(999888777, 1234, 100) .
+	eq fioAccount = account(999888777, 1234, 0) .
 
 	op fioAccountList : -> AccountList .
 	eq fioAccountList = accountList(fioAccount, accountList) .
@@ -23,14 +21,36 @@ fmod TESTS is
 	op bankDatabase : -> BankDB .
 	eq bankDatabase = bankDB(fioBank, bankDB) .
 
+	op noBanknotes : -> Banknotes .
+	eq noBanknotes = banknotes(0, 0, 0, 0, 0) .
+
+	op emptyAtm : -> Atm .
+	eq emptyAtm = atm(waitingForCard, nullCard, bankDatabase, noBanknotes) .
+
 	op insertedCardAtm : -> Atm .
 	eq insertedCardAtm = insertCard(fioCard, emptyAtm) .
 
+
 	var P : Pin .
 	op mockPinEntry : Pin -> Atm .
-	eq mockPinEntry(P) = validateCardPin(bankDatabase, P, insertedCardAtm) .
+	eq mockPinEntry(P) = validateCardPin(P, insertedCardAtm) .
+
+	op readyAtm : -> Atm .
+	eq readyAtm = mockPinEntry(enterPin(1234)) .
+
+	op filledAtm : -> Atm
+	eq filledAtm = deposit(banknotes(10, 0, 0, 0, 0), readyAtm) .
+
+	var H : 100s .
+	op withdrawHundredBills : 100s -> Atm .
+	eq withdrawHundredBills(H) = withdraw(banknotes(H, 0, 0, 0, 0), filledAtm) .
+
 
 endfm
 
 red mockPinEntry(enterPin(1234)) .
 red mockPinEntry(enterPin(1235)) .
+red checkAccountBalance(readyAtm) .
+red filledAtm .
+red withdrawHundredBills(6) .
+red withdrawHundredBills(11) .

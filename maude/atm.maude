@@ -29,13 +29,19 @@ fmod BANK is
 
 	sort Account AccountList Pin Balance .
 	subsort Nat < Pin Balance Account .
-	
 
-	op account : CardNumber Pin Balance -> Account .
+	sort Bank .
 
 	var CN : CardNumber .
 	var P : Pin .
+	var ACL : AccountList .
+	var A : Account .
+	var A2 : Account .
+	var C : Card .
+	var BN : BankName .
 	var B : Balance .
+
+	op account : CardNumber Pin Balance -> Account .
 	
 	op getAccountCardNumber : Account -> CardNumber .
 	eq getAccountCardNumber(account(CN, P, B)) = CN .
@@ -43,12 +49,12 @@ fmod BANK is
 	op getAccountPin : Account -> Pin .
 	eq getAccountPin(account(CN, P, B)) = P .
 
+	op getAccountBalance : Account -> Balance .
+	eq getAccountBalance(account(CN, P, B)) = B .
+
 	op accountList : -> AccountList .
 	op accountList : Account AccountList -> AccountList .
 
-	var ACL : AccountList .
-	var A : Account .
-	var C : Card .
 
 	op getAccountByCard : Card AccountList -> Account .
 	eq getAccountByCard(C, accountList(A, ACL)) =
@@ -58,8 +64,6 @@ fmod BANK is
 			getAccountByCard(C, ACL) 
 		fi .
 
-	sort Bank .
-	var BN : BankName .
 
 	op bank : BankName AccountList -> Bank .
 
@@ -68,6 +72,19 @@ fmod BANK is
 
 	op getBankAccountList : Bank -> AccountList .
 	eq getBankAccountList(bank(BN, ACL)) = ACL .
+
+	op removeAccount : Account AccountList -> AccountList .
+	eq removeAccount(A, accountList(A2, ACL)) =
+		if (getAccountCardNumber(A) == getAccountCardNumber(A2)) 
+			then ACL 
+		else 
+			accountList(A, removeAccount(A, ACL)) 
+		fi .
+
+	var NB : Balance .
+	op changeAccountBalance : Account Balance Bank -> Bank .
+	eq changeAccountBalance(account(CN, P, B), NB, bank(BN, ACL)) =
+		bank(BN, accountList(account(CN, P, B + NB), removeAccount(account(CN, P, B), ACL))) .
 
 
 endfm
@@ -83,6 +100,9 @@ fmod DATABASE is
 	var BN : BankName .
 	var BDB : BankDB .
 	var B : Bank .
+	var B2 : Bank .
+	var C : Card .
+	var BL : Balance .
 
 	op getBankByName : BankName BankDB -> Bank .
 	eq getBankByName(BN, bankDB(B, BDB)) =
@@ -90,6 +110,23 @@ fmod DATABASE is
 			then B 
 		else 
 			getBankByName(BN, BDB)
+		fi .
+	
+	op removeBankFromDB : Bank BankDB -> BankDB .
+	eq removeBankFromDB(B, bankDB(B2, BDB)) =
+		if getBankName(B) == getBankName(B2)
+			then BDB 
+		else 
+			bankDB(B, removeBankFromDB(B, BDB))
+		fi .
+	eq removeBankFromDB(B, bankDB) = bankDB .
+	
+	op changeCardBalance : Card Balance BankDB -> BankDB .
+	eq changeCardBalance(C, BL, bankDB(B, BDB)) =
+		if getCardBankName(C) == getBankName(B)
+			then bankDB(changeAccountBalance(getAccountByCard(C, getBankAccountList(B)), BL, B), removeBankFromDB(B, BDB))
+		else 
+			changeCardBalance(C, BL, BDB)
 		fi .
 
 endfm
@@ -99,17 +136,58 @@ fmod ATM is
 	protecting BANK .
 	protecting DATABASE .
 
-	protecting NAT .
+	protecting INT .
 
-	--- The "global" state of the ATM
-	--- Includes the state of the ATM itself.
+
 	sort AtmState .
 	ops waitingForCard waitingForPin readyForTransaction : -> AtmState .
-	ops invalidPin : -> AtmState .
+	ops invalidPin invalidRequest : -> AtmState .
 
+	sort 100s 200s 500s 1000s 2000s .
+	subsort Int < 100s 200s 500s 1000s 2000s .
+
+	sort Banknotes .
+	op banknotes : 100s 200s 500s 1000s 2000s -> Banknotes .
+
+	var Hundred : 100s .
+	var TwoHundred : 200s .
+	var FiveHundred  : 500s .
+	var Thousand : 1000s .
+	var TwoThousand : 2000s .
+
+	var Hundred2 : 100s .
+	var TwoHundred2 : 200s .
+	var FiveHundred2  : 500s .
+	var Thousand2 : 1000s .
+	var TwoThousand2 : 2000s .
+
+	op countBanknotes : Banknotes -> Balance .
+	eq countBanknotes(banknotes(Hundred, TwoHundred, FiveHundred, Thousand, TwoThousand)) =
+		Hundred * 100 + TwoHundred * 200 + FiveHundred * 500 + Thousand * 1000 + TwoThousand * 2000 .
+
+	op isWithdrawPossible : Banknotes Banknotes -> Bool .
+	eq isWithdrawPossible(
+		banknotes(Hundred, TwoHundred, FiveHundred, Thousand, TwoThousand), 
+		banknotes(Hundred2, TwoHundred2, FiveHundred2, Thousand2, TwoThousand2)
+		) = if (Hundred >= Hundred2) and (TwoHundred >= TwoHundred2) and (FiveHundred >= FiveHundred2) and (Thousand >= Thousand2) and (TwoThousand >= TwoThousand2)
+			then true
+		else false
+		fi .
+	
+	op withdrawBanknotes : Banknotes Banknotes -> Banknotes .
+	eq withdrawBanknotes(
+		banknotes(Hundred, TwoHundred, FiveHundred, Thousand, TwoThousand), 
+		banknotes(Hundred2, TwoHundred2, FiveHundred2, Thousand2, TwoThousand2)
+		) = banknotes(Hundred - Hundred2, TwoHundred - TwoHundred2, FiveHundred - FiveHundred2, Thousand - Thousand2, TwoThousand - TwoThousand2) .
+	
+	op depositBanknotes : Banknotes Banknotes -> Banknotes .
+	eq depositBanknotes(
+		banknotes(Hundred, TwoHundred, FiveHundred, Thousand, TwoThousand), 
+		banknotes(Hundred2, TwoHundred2, FiveHundred2, Thousand2, TwoThousand2)
+		) = banknotes(Hundred + Hundred2, TwoHundred + TwoHundred2, FiveHundred + FiveHundred2, Thousand + Thousand2, TwoThousand + TwoThousand2) .
 
 	sort Atm .
-	op atm : AtmState Card -> Atm .
+	op atm : AtmState Card BankDB Banknotes -> Atm .
 
 	--- All variables
 	var A : Atm .
@@ -117,20 +195,39 @@ fmod ATM is
 	var P : Pin .
 	var AS : AtmState .
 	var BDB : BankDB .
+	var BN : Banknotes .
+	var RBN : Banknotes . --- requested bank notes
 
 	
 	--- These ops simulate user interaction with ATM
 
 	op insertCard : Card Atm -> Atm .
-	eq insertCard(C, atm(waitingForCard, nullCard)) = atm(waitingForPin, C) .
+	eq insertCard(C, atm(waitingForCard, nullCard, BDB, BN)) = atm(waitingForPin, C, BDB, BN) .
 
-	op validateCardPin : BankDB Pin Atm -> Atm .
-	eq validateCardPin(BDB, P, atm(waitingForPin, C)) =
+	op validateCardPin : Pin Atm -> Atm .
+	eq validateCardPin(P, atm(waitingForPin, C, BDB, BN)) =
 		if getAccountPin(getAccountByCard(C, getBankAccountList(getBankByName(getCardBankName(C), BDB)))) == P
-			then atm(readyForTransaction, C) 
+			then atm(readyForTransaction, C, BDB, BN) 
 		else 
-			atm(invalidPin, C) 
+			atm(invalidPin, C, BDB, BN) 
 		fi .
+
+	op checkAccountBalance : Atm -> Balance .
+	eq checkAccountBalance(atm(readyForTransaction, C, BDB, BN)) =
+		getAccountBalance(getAccountByCard(C, getBankAccountList(getBankByName(getCardBankName(C), BDB)))) .
+
+
+	op withdraw : Banknotes Atm -> Atm .
+	eq withdraw(RBN, atm(readyForTransaction, C, BDB, BN)) =
+		if (checkAccountBalance(atm(readyForTransaction, C, BDB, BN)) >= countBanknotes(RBN) and isWithdrawPossible(BN, RBN))
+			then atm(readyForTransaction, C, changeCardBalance(C, -(countBanknotes(RBN)), BDB), withdrawBanknotes(BN, RBN))
+		else 
+			atm(invalidRequest, C, BDB, BN) 
+		fi .
+
+	op deposit : Banknotes Atm -> Atm .
+	eq deposit(RBN, atm(readyForTransaction, C, BDB, BN)) =
+		atm(readyForTransaction, C, changeCardBalance(C, countBanknotes(RBN), BDB), depositBanknotes(BN, RBN)) .
 
 	var N : Nat .
 	op enterPin : Nat -> Pin .
@@ -138,7 +235,7 @@ fmod ATM is
 
 	--- It is always possible to eject a card
 	op ejectCard : Atm -> Atm .
-	eq ejectCard(atm(AS, C)) = atm(waitingForCard, nullCard) .
+	eq ejectCard(atm(AS, C, BDB, BN)) = atm(waitingForCard, nullCard, BDB, BN) .
 	
 endfm
 
