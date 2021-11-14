@@ -25,10 +25,12 @@ endfm
 
 fmod BANK is 
 	protecting NAT .
+	protecting INT .
 	protecting CARD .
 
 	sort Account AccountList Pin Balance .
-	subsort Nat < Pin Balance Account .
+	subsort Nat < Pin Account .
+	subsort Int < Balance .
 
 	sort Bank .
 
@@ -80,6 +82,7 @@ fmod BANK is
 		else 
 			accountList(A, removeAccount(A, ACL)) 
 		fi .
+	eq removeAccount(A, accountList) = accountList .
 
 	var NB : Balance .
 	op changeAccountBalance : Account Balance Bank -> Bank .
@@ -128,6 +131,7 @@ fmod DATABASE is
 		else 
 			changeCardBalance(C, BL, BDB)
 		fi .
+	eq changeCardBalance(C, BL, bankDB) = bankDB .
 
 endfm
 

@@ -39,7 +39,7 @@ fmod TESTS is
 	eq readyAtm = mockPinEntry(enterPin(1234)) .
 
 	op filledAtm : -> Atm
-	eq filledAtm = deposit(banknotes(10, 0, 0, 0, 0), readyAtm) .
+	eq filledAtm = deposit(banknotes(10, 0, 0, 0, 1), readyAtm) .
 
 	var H : 100s .
 	op withdrawHundredBills : 100s -> Atm .
@@ -53,4 +53,4 @@ red mockPinEntry(enterPin(1235)) .
 red checkAccountBalance(readyAtm) .
 red filledAtm .
 red withdrawHundredBills(6) .
-red withdrawHundredBills(11) .
+red withdrawHundredBills(11) . --- This fails because the ATM does not have enough hundred bills
