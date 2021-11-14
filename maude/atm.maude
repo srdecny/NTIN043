@@ -1,0 +1,88 @@
+
+fmod CARD is
+
+	protecting NAT .
+	sort Card CardNumber Pin Balance .
+	subsort Nat < CardNumber Pin Balance .
+
+	op nullCard : -> Card .
+	op card : CardNumber Pin Balance -> Card .
+	op pin : Nat -> Pin .
+
+
+	var CN : CardNumber .
+	var P : Pin .
+	var B : Balance .
+
+	op getCardNumber : Card -> CardNumber .
+	eq getCardNumber(card(CN, P, B)) = CN .
+
+	op getCardPin : Card -> Pin .
+	eq getCardPin(card(CN, P, B)) = P .
+
+	op getCardBalance : Card -> Balance .
+	eq getCardBalance(card(CN, P, B)) = B .
+
+endfm
+
+fmod BANK is 
+	protecting NAT .
+	protecting CARD .
+
+	sort CardList .
+	op cardList : -> CardList .
+	op cardList : Card CardList -> CardList .
+
+	var C : Card .
+	var CN : CardNumber .
+	--- Tail of a list of cards
+	var TCL : CardList .
+
+	--- Linear search through the list of cards a bank knows about
+	op getCardByNumber : CardNumber CardList -> Card .
+	eq getCardByNumber(CN, cardList(C, TCL)) =
+		if CN == getCardNumber(C)
+			then C 
+		else 
+			getCardByNumber(CN, TCL)
+		fi .
+
+	sort Bank .
+	op bank : CardList -> Bank .
+
+
+endfm
+
+fmod ATM is
+	protecting NAT .
+	protecting CARD .
+	protecting BANK .
+
+	--- The "global" state of the ATM
+	--- Includes the state of the ATM itself.
+	sort AtmState .
+	ops waitingForCard waitingForCardValidation : -> AtmState .
+
+
+	sort Atm .
+	op atm : AtmState Card -> Atm .
+
+	--- All variables
+	var A : Atm .
+	var C : Card .
+	var AS : AtmState .
+
+	
+	--- These ops simulate user interaction with ATM
+
+	op insertCard : Card Atm -> Atm .
+	eq insertCard(C, atm(waitingForCard, nullCard)) = atm(waitingForCardValidation, C) .
+
+	--- It is always possible to reject a card
+	op rejectCard : Atm -> Atm .
+	eq rejectCard(atm(AS, C)) = atm(waitingForCard, nullCard) .
+	
+endfm
+
+
+	

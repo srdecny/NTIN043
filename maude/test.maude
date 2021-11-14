@@ -1,0 +1,25 @@
+load atm.maude .
+
+fmod TESTS is
+	protecting ATM .
+	protecting CARD .
+
+	op emptyAtm : -> Atm .
+	eq emptyAtm = atm(waitingForCard, nullCard) .
+
+	op mockCard : -> Card .
+	eq mockCard = card(999888777, 1234, 100) .
+
+	op mockCardList : -> CardList .
+	eq mockCardList = cardList(mockCard, cardList) .
+
+	op mockBank : -> Bank .
+	eq mockBank = bank(mockCardList) .
+	
+
+endfm
+
+--- Insert and reject card
+red mockCard .
+red insertCard(mockCard, emptyAtm) .
+red getCardByNumber(999888777, mockCardList) .
