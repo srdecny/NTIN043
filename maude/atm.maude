@@ -8,11 +8,11 @@ fmod CARD is
 	subsort Nat < CardNumber .
 	subsort String < BankName .
 
-	op nullCard : -> Card .
-	op card : BankName CardNumber -> Card .
-
 	var BN : BankName .
 	var CN : CardNumber .
+
+	op nullCard : -> Card .
+	op card : BankName CardNumber -> Card .
 
 	op getCardBankName : Card -> BankName .
 	eq getCardBankName(card(BN, CN)) = BN .
@@ -44,7 +44,8 @@ fmod BANK is
 	var B : Balance .
 
 	op account : CardNumber Pin Balance -> Account .
-	
+	op bank : BankName AccountList -> Bank .
+
 	op getAccountCardNumber : Account -> CardNumber .
 	eq getAccountCardNumber(account(CN, P, B)) = CN .
 
@@ -67,7 +68,6 @@ fmod BANK is
 		fi .
 
 
-	op bank : BankName AccountList -> Bank .
 
 	op getBankName : Bank -> BankName .
 	eq getBankName(bank(BN, ACL)) = BN .
@@ -139,19 +139,16 @@ fmod ATM is
 	protecting CARD .
 	protecting BANK .
 	protecting DATABASE .
-
 	protecting INT .
 
 
 	sort AtmState .
-	ops waitingForCard waitingForPin readyForTransaction : -> AtmState .
-	ops invalidPin invalidRequest : -> AtmState .
 
 	sort 100s 200s 500s 1000s 2000s .
 	subsort Int < 100s 200s 500s 1000s 2000s .
 
 	sort Banknotes .
-	op banknotes : 100s 200s 500s 1000s 2000s -> Banknotes .
+	sort Atm .
 
 	var Hundred : 100s .
 	var TwoHundred : 200s .
@@ -164,6 +161,12 @@ fmod ATM is
 	var FiveHundred2  : 500s .
 	var Thousand2 : 1000s .
 	var TwoThousand2 : 2000s .
+
+	ops waitingForCard waitingForPin readyForTransaction : -> AtmState .
+	ops invalidPin invalidRequest : -> AtmState .
+
+	op banknotes : 100s 200s 500s 1000s 2000s -> Banknotes .
+	op atm : AtmState Card BankDB Banknotes -> Atm .
 
 	op countBanknotes : Banknotes -> Balance .
 	eq countBanknotes(banknotes(Hundred, TwoHundred, FiveHundred, Thousand, TwoThousand)) =
@@ -190,10 +193,8 @@ fmod ATM is
 		banknotes(Hundred2, TwoHundred2, FiveHundred2, Thousand2, TwoThousand2)
 		) = banknotes(Hundred + Hundred2, TwoHundred + TwoHundred2, FiveHundred + FiveHundred2, Thousand + Thousand2, TwoThousand + TwoThousand2) .
 
-	sort Atm .
-	op atm : AtmState Card BankDB Banknotes -> Atm .
 
-	--- All variables
+
 	var A : Atm .
 	var C : Card .
 	var P : Pin .
@@ -201,10 +202,9 @@ fmod ATM is
 	var BDB : BankDB .
 	var BN : Banknotes .
 	var RBN : Banknotes . --- requested bank notes
+	var N : Nat .
 
 	
-	--- These ops simulate user interaction with ATM
-
 	op insertCard : Card Atm -> Atm .
 	eq insertCard(C, atm(waitingForCard, nullCard, BDB, BN)) = atm(waitingForPin, C, BDB, BN) .
 
@@ -233,11 +233,9 @@ fmod ATM is
 	eq deposit(RBN, atm(readyForTransaction, C, BDB, BN)) =
 		atm(readyForTransaction, C, changeCardBalance(C, countBanknotes(RBN), BDB), depositBanknotes(BN, RBN)) .
 
-	var N : Nat .
 	op enterPin : Nat -> Pin .
 	eq enterPin(N) = N .
 
-	--- It is always possible to eject a card
 	op ejectCard : Atm -> Atm .
 	eq ejectCard(atm(AS, C, BDB, BN)) = atm(waitingForCard, nullCard, BDB, BN) .
 	
